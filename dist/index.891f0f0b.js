@@ -612,28 +612,37 @@ document.addEventListener("DOMContentLoaded", async ()=>{
     const taskTemplates = tasks.map(createTaskTemplate);
     renderTemplates(taskTemplates, rootElement);
     tasks.forEach((task)=>{
-        const checkbox = document.getElementById(`item${task.id}`);
-        if (checkbox) checkbox.addEventListener("change", async (event)=>{
-            const isChecked = event.target.checked;
-            const response = await (0, _task.Task).toggleStatus(+task.id);
-            if (!response.ok) console.error("Failed to update task status", response);
-        });
-        const deleteButton = document.querySelector(`.delete-btn[data-id="${task.id}"]`);
-        if (deleteButton) deleteButton.addEventListener("click", async ()=>{
-            const response = await (0, _task.Task).delete(+task.id);
-            if (response != null) {
-                console.log(`Task ${task.id} deleted successfully.`);
-                deleteButton.closest(".list-item")?.remove();
-            } else console.error("Failed to delete task", response);
-        });
-        const editButton = document.querySelector(`.edit-btn[data-id="${task.id}"]`);
-        if (editButton) editButton.addEventListener("click", (event)=>{
-            event.preventDefault(); // Prevent refresh
-            const taskId = task.id;
-            window.location.href = `create.html?taskId=${taskId}`; // Redirect to create.html with the task ID
-        });
+        setupCheckbox(task);
+        setupDeleteButton(task);
+        setupEditButton(task);
     });
 });
+function setupCheckbox(task) {
+    const checkbox = document.getElementById(`item${task.id}`);
+    if (checkbox) checkbox.addEventListener("change", async (event)=>{
+        const isChecked = event.target.checked;
+        const response = await (0, _task.Task).toggleStatus(+task.id);
+        if (!response.ok) console.error("Failed to update task status", response);
+    });
+}
+function setupDeleteButton(task) {
+    const deleteButton = document.querySelector(`.delete-btn[data-id="${task.id}"]`);
+    if (deleteButton) deleteButton.addEventListener("click", async ()=>{
+        const response = await (0, _task.Task).delete(+task.id);
+        if (response != null) {
+            console.log(`Task ${task.id} deleted successfully.`);
+            deleteButton.closest(".list-item")?.remove();
+        } else console.error("Failed to delete task", response);
+    });
+}
+function setupEditButton(task) {
+    const editButton = document.querySelector(`.edit-btn[data-id="${task.id}"]`);
+    if (editButton) editButton.addEventListener("click", (event)=>{
+        event.preventDefault(); // Prevent refresh
+        const taskId = task.id;
+        window.location.href = `create.html?taskId=${taskId}`; // Redirect to create.html with the task ID
+    });
+}
 
 },{"./model/task":"9K1FT"}],"9K1FT":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
@@ -651,51 +660,87 @@ class TaskClass {
         this.endpoint = endpoint;
     }
     async loadAll() {
-        const res = await fetch(this.endpoint);
-        return res.json();
+        try {
+            const res = await fetch(this.endpoint);
+            return await res.json();
+        } catch (error) {
+            console.error("Failed to load data:", error);
+            throw error;
+        }
     }
     async delete(id) {
-        const res = await fetch(`${this.endpoint}/${id}`, {
-            method: "DELETE"
-        });
-        return res.json();
+        try {
+            const res = await fetch(`${this.endpoint}/${id}`, {
+                method: "DELETE"
+            });
+            return await res.json();
+        } catch (error) {
+            console.error(`Failed to delete item with id ${id}:`, error);
+            throw error;
+        }
     }
     async toggleStatus(id) {
-        const currentTaskResponse = await fetch(`${this.endpoint}/${id}`);
-        const currentTask = await currentTaskResponse.json();
-        const updatedTask = {
-            task: currentTask.task,
-            status: currentTask.status === 1 ? 0 : 1,
-            id: currentTask.id
-        };
-        const res = await fetch(`${this.endpoint}/${id}`, {
-            method: "PUT",
-            body: JSON.stringify(updatedTask),
-            headers: {
-                "Content-Type": "application/json"
-            }
-        });
-        return res;
+        try {
+            const currentTaskResponse = await fetch(`${this.endpoint}/${id}`);
+            if (!currentTaskResponse.ok) throw new Error(`Error fetching task: ${currentTaskResponse.status}`);
+            const currentTask = await currentTaskResponse.json();
+            const updatedTask = {
+                task: currentTask.task,
+                status: currentTask.status === 1 ? 0 : 1,
+                id: currentTask.id
+            };
+            const res = await fetch(`${this.endpoint}/${id}`, {
+                method: "PUT",
+                body: JSON.stringify(updatedTask),
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
+            if (!res.ok) throw new Error(`Error updating task: ${res.status}`);
+            return res;
+        } catch (error) {
+            console.error("Error toggling task status:", error);
+            throw error;
+        }
     }
     async update(data) {
-        const res = await fetch(`${this.endpoint}/${data.id}`, {
-            method: "PUT",
-            body: JSON.stringify(data),
-            headers: {
-                "Content-Type": "application/json"
-            }
-        });
-        return res;
+        try {
+            const res = await fetch(`${this.endpoint}/${data.id}`, {
+                method: "PUT",
+                body: JSON.stringify(data),
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
+            // Check if the response is successful
+            if (!res.ok) throw new Error(`Error: ${res.statusText}`);
+            return res;
+        } catch (error) {
+            console.error("Update failed:", error);
+            // You may want to rethrow the error or handle it accordingly
+            throw error; // Optional: rethrow the error to let the caller handle it
+        }
     }
     async save(data) {
-        const res = await fetch(`${this.endpoint}`, {
-            method: "POST",
-            body: JSON.stringify(data),
-            headers: {
-                "Content-Type": "application/json"
+        try {
+            const res = await fetch(`${this.endpoint}`, {
+                method: "POST",
+                body: JSON.stringify(data),
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
+            if (!res.ok) {
+                // Optionally handle non-2xx responses
+                const errorText = await res.text();
+                throw new Error(`HTTP error! status: ${res.status}, response: ${errorText}`);
             }
-        });
-        return res;
+            return res;
+        } catch (error) {
+            console.error("Error saving data:", error);
+            // Optionally re-throw or handle the error further
+            throw error; // re-throwing the error after logging it
+        }
     }
 }
 

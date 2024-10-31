@@ -43,39 +43,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderTemplates(taskTemplates, rootElement);
     
     tasks.forEach(task => {
-        const checkbox = document.getElementById(`item${task.id}`);
-        
-        if (checkbox) {
-            checkbox.addEventListener('change', async (event: Event) => {
-                const isChecked = (event.target as HTMLInputElement).checked;
-                const response = await Task.toggleStatus(+task.id);
-
-                if (!response.ok) {
-                    console.error('Failed to update task status', response);
-                }
-            });
-        }
-        const deleteButton = document.querySelector(`.delete-btn[data-id="${task.id}"]`);
-        if (deleteButton) {
-            deleteButton.addEventListener('click', async () => {
-                const response = await Task.delete(+task.id);
-                
-                if (response != null) {
-                    console.log(`Task ${task.id} deleted successfully.`);
-                    deleteButton.closest('.list-item')?.remove();
-                } else {
-                    console.error('Failed to delete task', response);
-                }
-            });
-        }
-
-        const editButton = document.querySelector(`.edit-btn[data-id="${task.id}"]`);
-        if (editButton) {
-            editButton.addEventListener('click', (event) => {
-                event.preventDefault(); // Prevent refresh
-                const taskId = task.id;
-                window.location.href = `create.html?taskId=${taskId}`; // Redirect to create.html with the task ID
-            });
-        }
+        setupCheckbox(task);
+        setupDeleteButton(task);
+        setupEditButton(task);
     });
 });
+
+function setupCheckbox(task: DataProps): void {
+    const checkbox = document.getElementById(`item${task.id}`);
+    
+    if (checkbox) {
+        checkbox.addEventListener('change', async (event: Event) => {
+            const isChecked = (event.target as HTMLInputElement).checked;
+            const response = await Task.toggleStatus(+task.id);
+
+            if (!response.ok) {
+                console.error('Failed to update task status', response);
+            }
+        });
+    }
+}
+
+function setupDeleteButton(task: DataProps): void {
+    const deleteButton = document.querySelector(`.delete-btn[data-id="${task.id}"]`);
+    
+    if (deleteButton) {
+        deleteButton.addEventListener('click', async () => {
+            const response = await Task.delete(+task.id);
+            
+            if (response != null) {
+                console.log(`Task ${task.id} deleted successfully.`);
+                deleteButton.closest('.list-item')?.remove();
+            } else {
+                console.error('Failed to delete task', response);
+            }
+        });
+    }
+}
+
+function setupEditButton(task: DataProps): void {
+    const editButton = document.querySelector(`.edit-btn[data-id="${task.id}"]`);
+    
+    if (editButton) {
+        editButton.addEventListener('click', (event) => {
+            event.preventDefault(); // Prevent refresh
+            const taskId = task.id;
+            window.location.href = `create.html?taskId=${taskId}`; // Redirect to create.html with the task ID
+        });
+    }
+}
